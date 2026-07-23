@@ -2,6 +2,7 @@ package com.pict.Repository;
 
 import com.pict.Entity.RiskAssessment;
 import com.pict.Entity.RiskLevel;
+import com.pict.Entity.Transaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,4 +16,8 @@ public interface RiskAssessmentRepo extends JpaRepository<RiskAssessment, Long> 
 
     List<RiskAssessment> findByRiskLevel(RiskLevel riskLevel);
 
+    Optional<RiskAssessment> findByTransaction(Transaction transaction);
+
+    Optional<RiskAssessment> findTopByTransactionUserIdOrderByAssessmentTimeDesc(Long userId);
+    // this will return the risk score of the latest transaction made by the respective user
 }
