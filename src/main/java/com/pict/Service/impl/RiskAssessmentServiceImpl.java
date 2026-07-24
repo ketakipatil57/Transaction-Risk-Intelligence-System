@@ -141,7 +141,7 @@ public class RiskAssessmentServiceImpl implements RiskAssessmentService {
         System.out.println("========== ML Request ==========");
         System.out.println(mlRequestDTO);
 
-        MLResponseDTO responseDTO = restTemplate.postForObject("http://127.0.0.1:5000/predict", mlRequestDTO, MLResponseDTO.class);
+        MLResponseDTO responseDTO = restTemplate.postForObject("https://transaction-risk-ml-service.onrender.com/predict", mlRequestDTO, MLResponseDTO.class);
         // (URL, request Body, response type)
 
         System.out.println("========== ML Response ==========");
