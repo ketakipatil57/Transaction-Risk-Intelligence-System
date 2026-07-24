@@ -53,13 +53,23 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
-        // this is used to disable the csrf sessions as we are using the JWT token for authentication
-        http.csrf(csrf -> csrf.disable());
-        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                // 1. Disable CSRF (Stateless REST API)
+                .csrf(csrf -> csrf.disable())
 
-        // this is used to allow user to login / register without any JWT token only these requests will be allowed(.anyRequest().authenticated() -> due to this all other requests require to authenticated)
-        http.authorizeHttpRequests(auth -> auth.requestMatchers("/auth/register", "/auth/login").permitAll().anyRequest().authenticated());
+                // 2. Attach your custom AuthenticationProvider
+                .authenticationProvider(authenticationProvider())
+
+                // 3. Define URL authorizations
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/auth/register", "/auth/login").permitAll()
+                        .anyRequest().authenticated()
+                )
+
+                // 4. Add JWT filter before username-password filter
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 }
