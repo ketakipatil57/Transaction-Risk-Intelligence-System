@@ -54,21 +54,14 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                // 1. Disable CSRF (Stateless REST API)
-                .csrf(csrf -> csrf.disable())
+        http.csrf(csrf -> csrf.disable());
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
-                // 2. Attach your custom AuthenticationProvider
-                .authenticationProvider(authenticationProvider())
-
-                // 3. Define URL authorizations
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/register", "/auth/login").permitAll()
-                        .anyRequest().authenticated()
-                )
-
-                // 4. Add JWT filter before username-password filter
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        http.authorizeHttpRequests(auth -> auth
+                // ADD "/error" HERE so Spring can display the real exception/stacktrace!
+                .requestMatchers("/auth/register", "/auth/login", "/error").permitAll()
+                .anyRequest().authenticated()
+        );
 
         return http.build();
     }
