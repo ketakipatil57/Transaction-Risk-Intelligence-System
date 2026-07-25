@@ -131,9 +131,9 @@ public class RiskAssessmentServiceImpl implements RiskAssessmentService {
         mlRequestDTO.setPreviousRiskScore(previousRiskScore);
 
         // Simulating the values
-        mlRequestDTO.setNewDevice(1);
-        mlRequestDTO.setLocationChanged(1);
-        mlRequestDTO.setFailedAttempts(5);
+        mlRequestDTO.setNewDevice(0);
+        mlRequestDTO.setLocationChanged(0);
+        mlRequestDTO.setFailedAttempts(0);
         mlRequestDTO.setTrustedReceiver(0);
         mlRequestDTO.setTransactionFrequency(15L);
 
@@ -150,7 +150,7 @@ public class RiskAssessmentServiceImpl implements RiskAssessmentService {
         String prompt = """
 You are a fraud detection assistant.
 
-Analyze the following transaction details and explain in 2 short sentences (MAXIMUM 30 WORDS) why the transaction received this risk level.
+Analyze the transaction details and explain in 2 short sentences (MAXIMUM 30 WORDS) why it received this risk level.
 
 Transaction Details:
 Amount: %s
@@ -159,15 +159,21 @@ Location: %s
 Device: %s
 Risk Score: %.2f
 Risk Level: %s
+New Device: %s
+Location Changed: %s
+Failed Attempts: %d
 
-Do not greet. Be concise, direct, and crisp.
+Do not greet. Be precise on the exact risk factors.
 """.formatted(
                 transaction.getAmount(),
                 transaction.getReceiver(),
                 transaction.getLocation(),
                 transaction.getDevice(),
                 responseDTO.getRiskScore(),
-                responseDTO.getRiskLevel()
+                responseDTO.getRiskLevel(),
+                mlRequestDTO.getNewDevice() == 1 ? "Yes" : "No",
+                mlRequestDTO.getLocationChanged() == 1 ? "Yes" : "No",
+                mlRequestDTO.getFailedAttempts()
         );
 
         String explanation = groqService.generateExplanation(prompt);
