@@ -25,7 +25,8 @@ public class RiskAssessment {
     @Column(nullable = false)
     private Double riskScore;
 
-    @Column(nullable = false)
+
+    @Column(name = "llm_explanation", columnDefinition = "TEXT", nullable = false)
     private String llmExplanation;
 
     @Column(nullable = false)
