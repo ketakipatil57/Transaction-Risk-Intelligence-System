@@ -150,7 +150,7 @@ public class RiskAssessmentServiceImpl implements RiskAssessmentService {
         String prompt = """
 You are a fraud detection assistant.
 
-Analyze the following transaction details and explain in 3-4 simple sentences why the transaction received the given risk score and risk level.
+Analyze the following transaction details and explain in 2 short sentences (MAXIMUM 30 WORDS) why the transaction received this risk level.
 
 Transaction Details:
 Amount: %s
@@ -160,9 +160,7 @@ Device: %s
 Risk Score: %.2f
 Risk Level: %s
 
-Do not greet the user.
-Do not repeat the input.
-Only provide a concise explanation of the risk.
+Do not greet. Be concise, direct, and crisp.
 """.formatted(
                 transaction.getAmount(),
                 transaction.getReceiver(),
@@ -176,20 +174,16 @@ Only provide a concise explanation of the risk.
 
         System.out.println("Groq Response: " + explanation);
 
+        RiskAssessment riskAssessment = new RiskAssessment();
         if(responseDTO == null){
             throw new RuntimeException("No response received from ML service");
         }
-
-        RiskAssessment riskAssessment = new RiskAssessment();
         riskAssessment.setTransaction(transaction);
         riskAssessment.setRiskScore(responseDTO.getRiskScore());
         riskAssessment.setAssessmentTime(LocalDateTime.now());
         riskAssessment.setRiskLevel(responseDTO.getRiskLevel());
 
-        // Safety Check: Truncate explanation if it exceeds 250 chars to avoid SQL 1406 error
-        if (explanation != null && explanation.length() > 250) {
-            explanation = explanation.substring(0, 245) + "...";
-        }
+        // Directly setting concise explanation without truncation
         riskAssessment.setLlmExplanation(explanation);
 
         if (responseDTO.getRiskLevel() == RiskLevel.HIGH) {
