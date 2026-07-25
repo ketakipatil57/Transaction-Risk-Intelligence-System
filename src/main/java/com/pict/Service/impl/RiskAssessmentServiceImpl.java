@@ -176,14 +176,20 @@ Only provide a concise explanation of the risk.
 
         System.out.println("Groq Response: " + explanation);
 
-        RiskAssessment riskAssessment = new RiskAssessment();
         if(responseDTO == null){
             throw new RuntimeException("No response received from ML service");
         }
+
+        RiskAssessment riskAssessment = new RiskAssessment();
         riskAssessment.setTransaction(transaction);
         riskAssessment.setRiskScore(responseDTO.getRiskScore());
         riskAssessment.setAssessmentTime(LocalDateTime.now());
         riskAssessment.setRiskLevel(responseDTO.getRiskLevel());
+
+        // Safety Check: Truncate explanation if it exceeds 250 chars to avoid SQL 1406 error
+        if (explanation != null && explanation.length() > 250) {
+            explanation = explanation.substring(0, 245) + "...";
+        }
         riskAssessment.setLlmExplanation(explanation);
 
         if (responseDTO.getRiskLevel() == RiskLevel.HIGH) {
