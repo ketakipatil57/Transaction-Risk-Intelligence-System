@@ -11,23 +11,19 @@ import com.pict.Service.RiskAssessmentService;
 import com.pict.dto.MLRequestDTO;
 import com.pict.dto.MLResponseDTO;
 import com.pict.dto.RiskAssessmentResponseDTO;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
 public class RiskAssessmentServiceImpl implements RiskAssessmentService {
 
-    @Autowired
     private final RestTemplate restTemplate;
-    @Autowired
     private final RiskAssessmentRepo riskAssessmentRepo;
-    @Autowired
     private final TransactionRepo transactionRepo;
-    @Autowired
     private final GroqService groqService;
 
     public RiskAssessmentServiceImpl(RestTemplate restTemplate, RiskAssessmentRepo riskAssessmentRepo, TransactionRepo transactionRepo, GroqService groqService){
@@ -39,31 +35,15 @@ public class RiskAssessmentServiceImpl implements RiskAssessmentService {
 
     @Override
     public RiskAssessmentResponseDTO analyseTransaction(Long transactionId){
-        //1. Fetch Transaction
-        //        │
-        //2. Check transaction exists
-        //        │
-        //3. Create MLRequestDTO
-        //        │
-        //4. Call Flask API
-        //        │
-        //5. Receive MLResponseDTO
-        //        │
-        //6. Create RiskAssessment Entity
-        //        │
-        //7. Save in MySQL
-        //        │
-        //8. Return RiskAssessmentResponseDTO
+        // 1. Fetch Transaction
+        Transaction transaction = transactionRepo.findById(transactionId)
+                .orElseThrow(() -> new RuntimeException("Transaction Not Found"));
 
-
-        Transaction transaction = transactionRepo.findById(transactionId).orElseThrow(()->new RuntimeException("Transaction Not Found"));
-
-        Optional<RiskAssessment> existing    = riskAssessmentRepo.findByTransaction(transaction);
+        // 2. Check existing assessment
+        Optional<RiskAssessment> existing = riskAssessmentRepo.findByTransaction(transaction);
 
         if(existing.isPresent()) {
-
             RiskAssessment existingAssessment = existing.get();
-
             RiskAssessmentResponseDTO existingResponse = new RiskAssessmentResponseDTO();
 
             existingResponse.setTransactionId(existingAssessment.getTransaction().getTransactionId());
@@ -76,49 +56,37 @@ public class RiskAssessmentServiceImpl implements RiskAssessmentService {
             return existingResponse;
         }
 
-        // Data that will be given to flask and then to the model for prediction
+        // 3. Create MLRequestDTO
         MLRequestDTO mlRequestDTO = new MLRequestDTO();
-         //Amount from Db
         mlRequestDTO.setAmount(transaction.getAmount());
-        //Device type , setting using conditions
+
+        // Device type mapping
         int deviceType = 0;
-        switch (transaction.getDevice().toUpperCase()){
-            case "MOBILE":
-                deviceType = 0;
-                break;
-
-            case "WEB":
-                deviceType = 1;
-                break;
-
-            case "ATM":
-                deviceType = 2;
-                break;
-
-            default: deviceType = 0;
+        if (transaction.getDevice() != null) {
+            switch (transaction.getDevice().toUpperCase()){
+                case "MOBILE": deviceType = 0; break;
+                case "WEB": deviceType = 1; break;
+                case "ATM": deviceType = 2; break;
+                default: deviceType = 0;
+            }
         }
         mlRequestDTO.setDeviceType(deviceType);
 
-        //Transaction hour retrieving from DB
+        // Transaction hour
         int transactionHour = transaction.getTransactionTime().getHour();
         mlRequestDTO.setTransactionHour(transactionHour);
 
-        // transactionFrequency
+        // Transaction frequency
         long transactionFrequency = transactionRepo.countByUserId(transaction.getUser().getId());
         mlRequestDTO.setTransactionFrequency(transactionFrequency);
-//
-        // Setting trusted receiver
-        boolean trustedReceiver = transactionRepo.existsByUserIdAndReceiver(transaction.getUser().getId(), transaction.getReceiver());
-        if(trustedReceiver){
-            mlRequestDTO.setTrustedReceiver(1);
-        }else{
-            mlRequestDTO.setTrustedReceiver(0);
-        }
 
-        // Getting previous transaction riskScore from DB
+        // Real dynamic trusted receiver check
+        boolean isTrusted = transactionRepo.existsByUserIdAndReceiver(transaction.getUser().getId(), transaction.getReceiver());
+        mlRequestDTO.setTrustedReceiver(isTrusted ? 1 : 0);
+
+        // Get previous risk score
         Optional<RiskAssessment> previousAssessment =
-                riskAssessmentRepo.findTopByTransactionUserIdOrderByAssessmentTimeDesc(
-                        transaction.getUser().getId());
+                riskAssessmentRepo.findTopByTransactionUserIdOrderByAssessmentTimeDesc(transaction.getUser().getId());
 
         double previousRiskScore = previousAssessment
                 .map(RiskAssessment::getRiskScore)
@@ -127,30 +95,38 @@ public class RiskAssessmentServiceImpl implements RiskAssessmentService {
         if (previousRiskScore > 1.0) {
             previousRiskScore /= 100.0;
         }
-
         mlRequestDTO.setPreviousRiskScore(previousRiskScore);
 
-        // Simulating the values
-        mlRequestDTO.setNewDevice(0);
+        // Default baseline flags
         mlRequestDTO.setLocationChanged(0);
         mlRequestDTO.setFailedAttempts(0);
-        mlRequestDTO.setTrustedReceiver(0);
-        mlRequestDTO.setTransactionFrequency(15L);
 
+        // Dynamic High-Risk Trigger using compareTo() for BigDecimal
+        BigDecimal highAmountThreshold = new BigDecimal("10000.0");
+        if (transaction.getAmount() != null && transaction.getAmount().compareTo(highAmountThreshold) > 0) {
+            mlRequestDTO.setNewDevice(1); // Flag as new device for large amounts
+        } else {
+            mlRequestDTO.setNewDevice(0);
+        }
 
         System.out.println("========== ML Request ==========");
         System.out.println(mlRequestDTO);
 
+        // 4. Call Flask ML API
         MLResponseDTO responseDTO = restTemplate.postForObject("https://transaction-risk-ml-service.onrender.com/predict", mlRequestDTO, MLResponseDTO.class);
-        // (URL, request Body, response type)
 
         System.out.println("========== ML Response ==========");
         System.out.println(responseDTO);
 
+        if (responseDTO == null) {
+            throw new RuntimeException("No response received from ML service");
+        }
+
+        // 5. Build prompt for Groq with concise instruction
         String prompt = """
 You are a fraud detection assistant.
 
-Analyze the transaction details and explain in 2 short sentences (MAXIMUM 30 WORDS) why it received this risk level.
+Analyze the transaction details and explain in 2-3 short sentences (MAXIMUM 30 WORDS) why it received this risk level.
 
 Transaction Details:
 Amount: %s
@@ -177,21 +153,17 @@ Do not greet. Be precise on the exact risk factors.
         );
 
         String explanation = groqService.generateExplanation(prompt);
-
         System.out.println("Groq Response: " + explanation);
 
+        // 6. Create RiskAssessment Entity
         RiskAssessment riskAssessment = new RiskAssessment();
-        if(responseDTO == null){
-            throw new RuntimeException("No response received from ML service");
-        }
         riskAssessment.setTransaction(transaction);
         riskAssessment.setRiskScore(responseDTO.getRiskScore());
         riskAssessment.setAssessmentTime(LocalDateTime.now());
         riskAssessment.setRiskLevel(responseDTO.getRiskLevel());
-
-        // Directly setting concise explanation without truncation
         riskAssessment.setLlmExplanation(explanation);
 
+        // 7. Update Transaction Status and Save
         if (responseDTO.getRiskLevel() == RiskLevel.HIGH) {
             transaction.setStatus(Status.BLOCKED);
         } else {
@@ -201,6 +173,7 @@ Do not greet. Be precise on the exact risk factors.
 
         RiskAssessment savedRiskAssessment = riskAssessmentRepo.save(riskAssessment);
 
+        // 8. Return Response DTO
         RiskAssessmentResponseDTO riskAssessmentResponseDTO = new RiskAssessmentResponseDTO();
         riskAssessmentResponseDTO.setTransactionId(savedRiskAssessment.getTransaction().getTransactionId());
         riskAssessmentResponseDTO.setAssessmentTime(savedRiskAssessment.getAssessmentTime());
@@ -212,4 +185,3 @@ Do not greet. Be precise on the exact risk factors.
         return riskAssessmentResponseDTO;
     }
 }
-
