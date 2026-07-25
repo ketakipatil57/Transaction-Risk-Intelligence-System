@@ -135,6 +135,7 @@ public class RiskAssessmentServiceImpl implements RiskAssessmentService {
         }
 
         // 5. Build prompt for Groq with concise instruction
+        // 5. Build prompt for Groq with concise instruction
         String prompt = """
 You are a fraud detection assistant.
 
@@ -150,6 +151,13 @@ Risk Level: %s
 New Device: %s
 Location Changed: %s
 Failed Attempts: %d
+Trusted Receiver: %s
+
+IMPORTANT: "Trusted Receiver" above is the ONLY source of truth for whether this
+receiver is trusted. Do NOT infer trust from the receiver's name sounding like a
+known/popular brand (e.g. Amazon Pay, Zomato) - a well-known name does not mean
+this user has actually transacted with them before. If Trusted Receiver is "No",
+explicitly treat this as a new/unverified receiver in your explanation.
 
 Do not greet. Be precise on the exact risk factors.
 """.formatted(
@@ -161,7 +169,8 @@ Do not greet. Be precise on the exact risk factors.
                 responseDTO.getRiskLevel(),
                 mlRequestDTO.getNewDevice() == 1 ? "Yes" : "No",
                 mlRequestDTO.getLocationChanged() == 1 ? "Yes" : "No",
-                mlRequestDTO.getFailedAttempts()
+                mlRequestDTO.getFailedAttempts(),
+                mlRequestDTO.getTrustedReceiver() == 1 ? "Yes" : "No"
         );
 
         String explanation = groqService.generateExplanation(prompt);
