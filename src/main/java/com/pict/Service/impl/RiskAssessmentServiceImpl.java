@@ -14,7 +14,6 @@ import com.pict.dto.RiskAssessmentResponseDTO;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -80,8 +79,11 @@ public class RiskAssessmentServiceImpl implements RiskAssessmentService {
         long transactionFrequency = transactionRepo.countByUserId(transaction.getUser().getId());
         mlRequestDTO.setTransactionFrequency(transactionFrequency);
 
-        // Real dynamic trusted receiver check
-        boolean isTrusted = transactionRepo.existsByUserIdAndReceiver(transaction.getUser().getId(), transaction.getReceiver());
+        // Genuine trusted receiver check: excludes the current transaction itself,
+        // since it's already saved in the DB by the time analyze() runs. Without
+        // the exclusion this would always return true (the row matches itself).
+        boolean isTrusted = transactionRepo.existsByUserIdAndReceiverAndTransactionIdNot(
+                transaction.getUser().getId(), transaction.getReceiver(), transaction.getTransactionId());
         mlRequestDTO.setTrustedReceiver(isTrusted ? 1 : 0);
 
         // Get previous risk score
@@ -97,17 +99,27 @@ public class RiskAssessmentServiceImpl implements RiskAssessmentService {
         }
         mlRequestDTO.setPreviousRiskScore(previousRiskScore);
 
-        // Default baseline flags
-        mlRequestDTO.setLocationChanged(0);
+        // failedAttempts: no genuine tracking table exists yet (would need a
+        // failed-login/failed-transaction-attempt log). Kept as baseline 0 until
+        // that data source exists - do NOT derive this from an unrelated field.
         mlRequestDTO.setFailedAttempts(0);
 
-        // Dynamic High-Risk Trigger using compareTo() for BigDecimal
-        BigDecimal highAmountThreshold = new BigDecimal("10000.0");
-        if (transaction.getAmount() != null && transaction.getAmount().compareTo(highAmountThreshold) > 0) {
-            mlRequestDTO.setNewDevice(1); // Flag as new device for large amounts
-        } else {
-            mlRequestDTO.setNewDevice(0);
-        }
+        // Genuine newDevice check: has this user used this device type before,
+        // in any transaction other than the current one?
+        boolean deviceSeenBefore = transactionRepo.existsByUserIdAndDeviceAndTransactionIdNot(
+                transaction.getUser().getId(), transaction.getDevice(), transaction.getTransactionId());
+        mlRequestDTO.setNewDevice(deviceSeenBefore ? 0 : 1);
+
+        // Genuine locationChanged check: compare against the user's previous transaction's location
+        Optional<Transaction> lastTransaction = transactionRepo.findTopByUserIdAndTransactionIdNotOrderByTransactionTimeDesc(
+                transaction.getUser().getId(), transaction.getTransactionId());
+
+        boolean locationChanged = lastTransaction
+                .map(t -> t.getLocation() != null && transaction.getLocation() != null
+                        && !t.getLocation().equalsIgnoreCase(transaction.getLocation()))
+                .orElse(false); // no prior transaction -> nothing to compare against, treat as unchanged
+
+        mlRequestDTO.setLocationChanged(locationChanged ? 1 : 0);
 
         System.out.println("========== ML Request ==========");
         System.out.println(mlRequestDTO);
