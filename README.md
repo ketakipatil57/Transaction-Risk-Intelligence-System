@@ -1,52 +1,80 @@
 # 🛡️ Transaction Risk Intelligence System
 
-A backend application that analyzes transaction risk using a machine learning model and generates a human-readable explanation using Groq LLM.
+![Java](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.x-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.x-blue)
+![Flask](https://img.shields.io/badge/Flask-ML_Service-black)
+![MySQL](https://img.shields.io/badge/MySQL-Railway-blue)
+![Render](https://img.shields.io/badge/Deployment-Render-purple)
+
+An AI-powered backend application that detects potentially fraudulent transactions using Machine Learning and generates human-readable explanations using Groq LLM.
 
 ---
 
-## Project Overview
+# 📌 Project Overview
 
-This project is built using Spring Boot, Python Flask, MySQL, and Groq LLM.
+The **Transaction Risk Intelligence System** is a microservice-based backend application that analyzes financial transactions for potential fraud using a Machine Learning model.
 
-A user creates a transaction through the Spring Boot backend. The backend extracts transaction features and sends them to a Flask microservice, 
-where a trained Random Forest model predicts the transaction's fraud risk. The predicted risk score and risk level are then used to generate a natural language explanation using Groq. Finally, 
-the transaction and its risk assessment are stored in the database.
+The application follows a complete backend workflow where **Spring Boot** handles authentication, transaction management, and business logic, while a deployed **Flask microservice** performs fraud prediction using a trained **Random Forest** model. The predicted risk score is then passed to **Groq LLM**, which generates a concise and explainable reason for the assigned risk level.
+
+Finally, the transaction and its corresponding risk assessment are securely stored in the database.
 
 ---
 
-## Features
+# ✨ Features
 
-### Authentication
+## 🔐 Authentication
+
 - User Registration
 - User Login
 - JWT Authentication
 - Password Encryption using BCrypt
 - Spring Security
 
-### Transaction Management
+---
+
+## 💳 Transaction Management
+
 - Create Transactions
 - Retrieve Transaction History
-- Update Transaction Status based on Risk Assessment
-
-### Risk Assessment
-- Predict transaction risk using a Random Forest model
-- Generate a Risk Score
-- Classify transactions as:
-  - LOW
-  - MEDIUM
-  - HIGH
-
-### AI Explanation
-- Generate a human-readable explanation for the predicted risk using Groq LLM.
-
-### Database
-- Store Users
-- Store Transactions
-- Store Risk Assessments
+- Automatic Transaction Status Update
+- User-wise Transaction Storage
 
 ---
 
-## Tech Stack
+## 🤖 Machine Learning Risk Assessment
+
+- Random Forest Fraud Detection
+- Risk Score Generation
+- Risk Level Classification
+
+Risk Levels:
+
+- LOW
+- MEDIUM
+- HIGH
+
+---
+
+## 🧠 Explainable AI
+
+- Generates human-readable fraud explanations
+- Powered by Groq LLM
+- Explains why a transaction received its predicted risk level
+
+---
+
+## 🗄 Database
+
+Stores:
+
+- Users
+- Transactions
+- Risk Assessments
+
+---
+
+# 🛠 Tech Stack
 
 | Technology | Purpose |
 |------------|---------|
@@ -54,38 +82,85 @@ the transaction and its risk assessment are stored in the database.
 | Spring Boot | REST APIs |
 | Spring Security | Authentication & Authorization |
 | JWT | Secure Authentication |
-| MySQL | Database |
-| Python | Machine Learning Service |
+| Maven | Dependency Management |
+| Python | Machine Learning |
 | Flask | ML REST API |
 | Scikit-learn | Random Forest Model |
 | Groq API | AI-generated Explanation |
-| Maven | Dependency Management |
+| MySQL | Database |
+| Railway | Cloud Database |
+| Render | Backend & ML Deployment |
 | Postman | API Testing |
 
 ---
 
-## Project Workflow
+# ☁️ Deployment
 
+The application is fully deployed using cloud services.
+
+| Component | Platform |
+|-----------|----------|
+| Spring Boot Backend | Render |
+| Flask ML Service | Render |
+| MySQL Database | Railway |
+
+The backend communicates with the deployed Flask ML service using REST APIs, while all application data is stored securely in Railway MySQL.
+
+---
+
+# 🏗 System Architecture
+
+```text
+                    +----------------------+
+                    |       Client         |
+                    +----------+-----------+
+                               |
+                               v
+                 Spring Boot Backend (Render)
+                               |
+        +----------------------+----------------------+
+        |                                             |
+        |                                             |
+        v                                             v
+ Railway MySQL                              Flask ML Service (Render)
+                                                   |
+                                                   v
+                                      Random Forest Model
+                                                   |
+                                                   v
+                                             Risk Score
+                                                   |
+                                                   v
+                                              Groq LLM
+                                                   |
+                                                   v
+                                     Explainable Risk Response
 ```
+
+---
+
+# 🔄 Project Workflow
+
+```text
 User
    │
    ▼
-Login (JWT Authentication)
+JWT Authentication
    │
    ▼
 Create Transaction
    │
    ▼
-Spring Boot Backend
+Store Transaction in Railway MySQL
    │
    ▼
 Extract Transaction Features
    │
    ▼
-Flask ML Service
+Flask ML Service (Render)
    │
    ▼
-Random Forest Model
+Random Forest Prediction
    │
    ▼
 Risk Score & Risk Level
@@ -94,67 +169,77 @@ Risk Score & Risk Level
 Groq LLM
    │
    ▼
-Generate Explanation
+Generate Risk Explanation
    │
    ▼
-Store Risk Assessment in MySQL
+Store Risk Assessment
    │
    ▼
-Return Response
+Return Final Response
 ```
 
 ---
 
-## Project Structure
+# 📂 Project Structure
 
-```
-src
-├── config
-├── controller
-├── dto
-├── entity
-├── repository
-├── security
-└── service
-
-Flask Service
-├── app.py
-├── train_model.py
-├── model.pkl
-└── transaction_dataset.csv
+```text
+Transaction-Risk-Intelligence-System
+│
+├── Spring Boot Backend
+│   ├── config
+│   ├── controller
+│   ├── dto
+│   ├── entity
+│   ├── repository
+│   ├── security
+│   └── service
+│
+├── Flask ML Service
+│   ├── app.py
+│   ├── train_model.py
+│   ├── model.pkl
+│   └── transaction_dataset.csv
+│
+└── README.md
 ```
 
 ---
 
-## API Endpoints
+# 📡 API Endpoints
 
-### Authentication
-
-| Method | Endpoint |
-|--------|----------|
-| POST | /api/auth/register |
-| POST | /api/auth/login |
-
-### Transactions
+## Authentication
 
 | Method | Endpoint |
 |--------|----------|
-| POST | /api/transactions |
-| GET | /api/transactions |
-| GET | /api/transactions/{id} |
-
-### Risk Assessment
-
-| Method | Endpoint |
-|--------|----------|
-| POST | /api/risk/analyze/{transactionId} |
-| GET | /api/risk/{transactionId} |
+| POST | `/api/auth/register` |
+| POST | `/api/auth/login` |
 
 ---
 
-## Machine Learning Features
+## Transactions
 
-The Random Forest model uses the following transaction features:
+| Method | Endpoint |
+|--------|----------|
+| POST | `/api/transactions` |
+| GET | `/api/transactions` |
+| GET | `/api/transactions/{id}` |
+
+---
+
+## Risk Assessment
+
+| Method | Endpoint |
+|--------|----------|
+| POST | `/api/risk/analyze/{transactionId}` |
+| GET | `/api/risk/{transactionId}` |
+
+---
+
+# 🤖 Machine Learning
+
+The fraud detection model is built using a **Random Forest Classifier** trained on transaction data.
+
+### Features Used
 
 - Transaction Amount
 - Device Type
@@ -166,11 +251,11 @@ The Random Forest model uses the following transaction features:
 - Trusted Receiver
 - Failed Login Attempts
 
-These features are sent from the Spring Boot backend to the Flask service for prediction.
+These features are extracted by the Spring Boot backend and sent to the Flask microservice for fraud prediction.
 
 ---
 
-## Risk Levels
+# 📊 Risk Levels
 
 | Risk Score | Risk Level |
 |------------|------------|
@@ -180,25 +265,50 @@ These features are sent from the Spring Boot backend to the Flask service for pr
 
 ---
 
-## Future Improvements
+# ⭐ Key Highlights
 
-Possible future enhancements include:
-
-- Dynamic device history tracking
-- Login attempt history
-- Improved trusted receiver calculation
-- Docker deployment
-- Cloud deployment
+- JWT-based Authentication
+- Secure REST APIs
+- Random Forest Fraud Detection
+- Explainable AI using Groq LLM
+- Microservice Architecture
+- Railway Cloud Database
+- Cloud Deployment using Render
+- REST Communication between Backend & ML Service
+- Production-style Backend Design
 
 ---
 
-## Author
+# 🚀 Future Enhancements
+
+- Dynamic Device History Tracking
+- Geo-location Anomaly Detection
+- Failed Login Attempt Monitoring
+- Email & SMS Fraud Alerts
+- Redis Caching
+- Kafka Event Streaming
+- Docker Compose
+- Kubernetes Deployment
+- Real-time Fraud Monitoring Dashboard
+
+---
+
+# 👩‍💻 Author
 
 **Ketaki Ramdas Patil**
 
-Second Year B.E. Electronics and Telecommunication Engineering
+B.E. Electronics and Telecommunication Engineering
 
 Pune Institute of Computer Technology (PICT)
+
+GitHub:
+https://github.com/ketakipatil57
+
+---
+
+# 📄 License
+
+This project is developed for educational and learning purposes.
 
 
 
@@ -211,6 +321,13 @@ Pune Institute of Computer Technology (PICT)
 <img width="1600" height="899" alt="948684a2-52e1-4fa2-8604-4b96033f9901" src="https://github.com/user-attachments/assets/539107cf-aa1a-42cf-8164-c7e6d5b36bdd" />
 
 <img width="1521" height="741" alt="8c83ca4b-1ae9-4f17-90ec-93311743c814" src="https://github.com/user-attachments/assets/5999d463-d54d-4bbc-880d-b8efbaba3f41" />
+
+<img width="1915" height="910" alt="image" src="https://github.com/user-attachments/assets/ac07a8f6-d003-4d89-a2f3-aba47ba7bde6" />
+
+<img width="1912" height="893" alt="image" src="https://github.com/user-attachments/assets/f3ece13d-b5af-49e2-93c2-fd8263626e77" />
+
+<img width="1915" height="913" alt="image" src="https://github.com/user-attachments/assets/3a8562cc-52ef-4a36-a464-b07d5c8654f2" />
+
 
 
 
